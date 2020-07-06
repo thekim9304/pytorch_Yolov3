@@ -20,18 +20,18 @@ class Postprocessor(nn.Module):
             batch_size = raw_yolo_out[0].size(0)
             num_landmarks = raw_yolo_out[2].size(-1)
             boxes.append(raw_yolo_out[0].view(batch_size, -1, 4))
-            if raw_yolo_out[1].shape[1] == 26:
-                pass
-                # print(raw_yolo_out[1].contiguous().view(batch_size, -1, 1)[0][76])
-
-                # val = 0
-                # d_val = 0
-                # for d, i in enumerate(raw_yolo_out[1].contiguous().view(batch_size, -1, 1)[0]):
-                #     print(i)
-                #     if i > val:
-                #         val = i
-                #         d_val = d
-                # print(d_val, val)
+            # if raw_yolo_out[1].shape[1] == 26:
+            #     pass
+            #     # print(raw_yolo_out[1].contiguous().view(batch_size, -1, 1)[0][76])
+            #
+            #     # val = 0
+            #     # d_val = 0
+            #     # for d, i in enumerate(raw_yolo_out[1].contiguous().view(batch_size, -1, 1)[0]):
+            #     #     print(i)
+            #     #     if i > val:
+            #     #         val = i
+            #     #         d_val = d
+            #     # print(d_val, val)
 
             objectness.append(raw_yolo_out[1].contiguous().view(batch_size, -1, 1))
             landmarks_coord.append(raw_yolo_out[2].contiguous().view(batch_size, -1, num_landmarks))
