@@ -3,7 +3,6 @@ import time
 import datetime
 
 import torch
-from pip._vendor.requests import post
 from torch.utils.data import DataLoader
 
 from yolov3 import YoloV3, YoloLoss
@@ -17,25 +16,26 @@ EPOCH = 10000
 
 
 def main():
-    ann_dir = 'E:/DB_FaceLandmark/300VW+WFLW'
+    ann_dir = 'C:/Users/th_k9/Desktop/Yolov3withFacelandmark/annotation_preparation/300VW_train2'
+    # ann_dir = 'E:/DB_FaceLandmark/300VW+WFLW'
     img_dir = 'E:/DB_FaceLandmark'
     pth_dir = 'E:/models/'
 
     saved_pth_dir = 'C:/Users/th_k9/Desktop/pytorch_Yolov3/model'
-    pth_file =  '4544_0.1861.pth'
+    pth_file = 'darknet_309_0.0099.pth'
 
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     num_landmarks = 96
-    lr_rate = 0.00001
+    lr_rate = 0.00007
     pre_train = True
 
     dataset = CustomDataset(ann_dir, img_dir)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=0)
     # postprocessor = Postprocessor(max_detection=3, iou_threshold=0.5, score_threshold=0.5).cuda()
 
-    model = YoloV3(num_landmarks).to(device)
+    model = YoloV3(num_landmarks, 'darknet53').to(device)
     loss_objects = [YoloLoss(valid_anchors_wh, num_landmarks) for valid_anchors_wh in anchors_wh_mask]
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr_rate)
@@ -62,27 +62,38 @@ def main():
         epoch_total_loss = train_one_epoch(model, loss_objects, dataloader, optimizer, use_cuda)
 
         if epoch_total_loss < lowest_loss:
-            if model_save_cnt == 0:
-                lowest_loss = epoch_total_loss
-                state = {
-                    'Epoch' : epoch,
-                    'model_state_dict' : model.state_dict(),
-                    'optimizer_state_dict' : optimizer.state_dict(),
-                    'loss' : epoch_total_loss
-                }
-                file_path = pth_dir + '{}_{:.4f}.pth'.format(epoch, lowest_loss)
-                torch.save(state, file_path)
-                print('Save model _ [loss : {:.4f}, save_path : {}]\n'.format(lowest_loss, file_path))
-                model_save_cnt += 1
-            elif model_save_cnt == 9:
-                print('model_save_cnt reset!')
-                model_save_cnt = 0
+            lowest_loss = epoch_total_loss
+            state = {
+                'Epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': epoch_total_loss
+            }
+            file_path = pth_dir + '{}_{:.4f}.pth'.format(epoch, lowest_loss)
+            torch.save(state, file_path)
+            print('Save model _ [loss : {:.4f}, save_path : {}]\n'.format(lowest_loss, file_path))
+            # if model_save_cnt == 0:
+            #     lowest_loss = epoch_total_loss
+            #     state = {
+            #         'Epoch' : epoch,
+            #         'model_state_dict' : model.state_dict(),
+            #         'optimizer_state_dict' : optimizer.state_dict(),
+            #         'loss' : epoch_total_loss
+            #     }
+            #     file_path = pth_dir + '{}_{:.4f}.pth'.format(epoch, lowest_loss)
+            #     torch.save(state, file_path)
+            #     print('Save model _ [loss : {:.4f}, save_path : {}]\n'.format(lowest_loss, file_path))
+            #     model_save_cnt += 1
+            # elif model_save_cnt == 9:
+            #     print('model_save_cnt reset!')
+            #     model_save_cnt = 0
+            # else:
+            #     lowest_loss = epoch_total_loss
+            #     print('epoch_total_loss < lowest_loss, but model_save_cnt is {}'.format(model_save_cnt))
+            #     model_save_cnt += 1
 
-            if model_save_cnt != 0:
-                lowest_loss = epoch_total_loss
-                print('epoch_total_loss < lowest_loss, but model_save_cnt is {}'.format(model_save_cnt))
-
-        if lowest_loss < 0.00001:
+        if lowest_loss < 0.0001:
+            print('lowest_loss too low : {}'.format(lowest_loss))
             break
 
 def train_one_epoch(model, loss_objects, dataloader, optimizer, use_cuda, post=None):
@@ -101,6 +112,9 @@ def train_one_epoch(model, loss_objects, dataloader, optimizer, use_cuda, post=N
             label[0] = label[0].cuda()
             label[1] = label[1].cuda()
             label[2] = label[2].cuda()
+
+        optimizer.zero_grad()
+
         model_output = model(x, training=True)
 
         '''
@@ -133,8 +147,6 @@ def train_one_epoch(model, loss_objects, dataloader, optimizer, use_cuda, post=N
         total_landmark_loss = torch.sum(torch.stack(landmark_losses))
         total_obj_loss = torch.sum(torch.stack(obj_losses))
 
-
-        optimizer.zero_grad()
         total_losses.backward()
         optimizer.step()
 
